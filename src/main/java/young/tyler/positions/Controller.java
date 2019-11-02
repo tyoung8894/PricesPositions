@@ -19,29 +19,32 @@ public class Controller implements IController {
 		view.createView();
 	}
 
+	@Override
 	public void loadPositions(String filePath) throws IOException {
-		String fileString = model.displayPositionsFile(filePath);
-		model.setDisplay(fileString);
+		model.clear();
+		String fileContents = model.loadPositions(filePath);
+		model.setDisplay(fileContents);
 	}
 
-	public void loadUpdatedPriceFile(String filePath) throws IOException {
-		String fileString = model.displayPriceFile(filePath);
-		model.setDisplay(fileString);
+	@Override
+	public void loadUpdatedPrices(String filePath) throws IOException {
+		model.clear();
+		model.setMap(new HashMap<String, String[]>());  
+		String fileContents = model.loadUpdatedPrices(filePath);
+		model.setDisplay(fileContents);
 	}
 
 	//requires a position and xls file to be loaded
+	@Override
 	public void generatePositionsFile() throws IOException { 
-		HashMap<String, String[]> map = model.parseUpdatedPriceFile();
-		String fileString = model.parsePositionsFile(map);
-		model.setDisplay(fileString);
+		String fileContents = model.generatePositionsFile();
+		model.setDisplay(fileContents);
 	}
-
+		
+	
+	@Override
 	public void save(String filePath) {
 		model.save(filePath);
-	}
-
-	public void clear() {
-		model.clear();
 	}
 
 

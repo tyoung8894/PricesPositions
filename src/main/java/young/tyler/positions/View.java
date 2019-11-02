@@ -27,7 +27,7 @@ import javax.swing.JFileChooser;
 public class View extends JPanel implements ActionListener, ViewObserver {
 	JFrame frame;
 	JButton btnLoadPositions; 
-	JButton btnLoadUpdatedPriceFile;  
+	JButton btnLoadUpdatedPrices;  
 	JButton btnGeneratePositionsFile;
 	JButton btnSave; 
 	JTextArea textArea;
@@ -65,13 +65,13 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 
 		JPanel btnPanel = new JPanel();
 
-		btnLoadPositions = new JButton("Load Positions");
+		btnLoadPositions = new JButton("Load Positions File");
 		btnLoadPositions.addActionListener(this);
 		btnPanel.add(btnLoadPositions);	
 
-		btnLoadUpdatedPriceFile = new JButton("Load Updated Price File");
-		btnLoadUpdatedPriceFile.addActionListener(this);
-		btnPanel.add(btnLoadUpdatedPriceFile);
+		btnLoadUpdatedPrices = new JButton("Load Price File");
+		btnLoadUpdatedPrices.addActionListener(this);
+		btnPanel.add(btnLoadUpdatedPrices);
 
 		btnGeneratePositionsFile = new JButton("Generate New Positions File");
 		btnGeneratePositionsFile.addActionListener(this);
@@ -92,15 +92,14 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 
 
 	public void actionPerformed(ActionEvent e) {
+		
+		
 		//load positions file clicked
 		if(e.getSource() == btnLoadPositions) {
 			int returnVal = fileChooser.showOpenDialog(View.this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				file = fileChooser.getSelectedFile();
-				filePath = file.getAbsolutePath();  //file to display
-				controller.clear();
 				try {		
-					controller.loadPositions(filePath);
+					controller.loadPositions(fileChooser.getSelectedFile().getAbsolutePath());
 					btnSave.setEnabled(true);
 					positionsLoaded = true;
 					if(pricesLoaded) {
@@ -114,14 +113,11 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		}
 
 		//load updated price file clicked
-		if(e.getSource() == btnLoadUpdatedPriceFile) {
+		if(e.getSource() == btnLoadUpdatedPrices) {
 			int returnVal = fileChooser.showOpenDialog(View.this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				file = fileChooser.getSelectedFile(); 
-				filePath = file.getAbsolutePath(); 
-				controller.clear();
 				try {
-					controller.loadUpdatedPriceFile(filePath);	
+					controller.loadUpdatedPrices(fileChooser.getSelectedFile().getAbsolutePath());	
 					btnSave.setEnabled(true);
 					pricesLoaded = true;
 					if(positionsLoaded) {
@@ -137,7 +133,6 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		//generate new positions file clicked, xls and txt file must be loaded first 
 		if(e.getSource() == btnGeneratePositionsFile) {
 			try {
-				controller.clear();
 				controller.generatePositionsFile();
 			} catch (IOException e1) {
 				e1.printStackTrace();
@@ -147,10 +142,8 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		//save clicked, xls or txt file must be loaded first, saves to txt file
 		if(e.getSource() == btnSave) {
 			int returnVal = fileChooser.showSaveDialog(View.this);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				file = fileChooser.getSelectedFile();
-				filePath = file.getAbsolutePath();
-				controller.save(filePath);			
+			if (returnVal == JFileChooser.APPROVE_OPTION) {		
+				controller.save(fileChooser.getSelectedFile().getAbsolutePath());			
 			} 
 
 		}
@@ -162,6 +155,7 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		String display = model.getDisplay();
 		textArea.setText(display);	
 	}
-
+	
+	
 
 }

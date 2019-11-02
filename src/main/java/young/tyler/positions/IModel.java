@@ -2,16 +2,22 @@ package young.tyler.positions;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.poi.ss.usermodel.Row;
 
 public interface IModel {
 	void registerObserver(ViewObserver o);
 	void removeObserver(ViewObserver o);
+	void notifyViewObservers();
+	String getDisplay();
 	void setDisplay(String input);
-	String displayPriceFile(String filePath) throws IOException;
-	String displayPositionsFile(String filePath);
-	HashMap<String, String[]> parseUpdatedPriceFile() throws IOException;
-	String parsePositionsFile(HashMap<String, String[]> map);
+	Map<String, String[]> getMap();
+	void setMap(Map<String, String[]> map);
+	String loadUpdatedPrices(String filePath) throws IOException;
+	String loadPositions(String filePath);
+	String generatePositionsFile();
 	void clear();
 	void save(String filePath);
-	String getDisplay();
+	void mapRow(Row row);	
 }

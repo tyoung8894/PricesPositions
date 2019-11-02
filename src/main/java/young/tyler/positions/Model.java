@@ -14,6 +14,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -21,42 +22,64 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
+import org.apache.poi.ss.usermodel.Row;
 import org.codehaus.plexus.util.StringUtils;
 
 public class Model implements IModel {
 	ArrayList<ViewObserver> viewObservers = new ArrayList<ViewObserver>();
 	String display = "";
-	String val1String = "";
-	String val2String = "";
 	String xlsFilePath = "";
 	String txtFilePath = "";
 	StringBuilder sb = new StringBuilder();
+	boolean positionsLoaded = false;
+	boolean pricesLoaded = false;
+	Map<String, String[]> updatedPricesMap = null;
 
 	//set the text to string representing file's contents, notify observers to update text
+	@Override
 	public void setDisplay(String input) {
 		display = input;
 		notifyViewObservers();
 	}
 
 	//return current display text
+	@Override
 	public String getDisplay() {
 		return display;
 	}
 
+	@Override
+	public void setMap(Map<String, String[]> map) {
+		updatedPricesMap = map;
+	}
+
+
+	@Override
+	public Map<String, String[]> getMap() {
+		return updatedPricesMap;	
+	}
+
 
 	//clear the text
+	@Override
 	public void clear() {
 		sb.setLength(0);
 		setDisplay("");
 	}
 
+
 	//save the current loaded/displayed file as txt
+	@Override
 	public void save(String filePath) {
 		try {
 			File newTextFile = new File(filePath);
@@ -70,212 +93,200 @@ public class Model implements IModel {
 	}
 
 
-	//creates positions .txt file string to display
-	public String displayPositionsFile(String fileName) {
+	//creates positions .txt file string to display, check if txt
+	@Override
+	public String loadPositions(String fileName) {
 		txtFilePath = fileName;
-		BufferedReader in;
-		String line;
-		try {
-			in = new BufferedReader(new FileReader(txtFilePath));
+		try (BufferedReader in = new BufferedReader(new FileReader(txtFilePath))) {
+			String line;
 			while((line = in.readLine()) != null)
 			{
 				sb.append(line + "\n");
-				System.out.println(line);
 			}
-			in.close();
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
+		} 
 		return sb.toString();
 	}
 
 
 	//creates updated price xls file string to display
-	public String displayPriceFile(String fileName) throws IOException {
+	@Override
+	public String loadUpdatedPrices(String fileName) throws IOException {
 		xlsFilePath = fileName;
-		InputStream excelPriceFile;
-		excelPriceFile = new FileInputStream(xlsFilePath);
+		InputStream excelPriceFile = new FileInputStream(xlsFilePath);
 		HSSFWorkbook wb = new HSSFWorkbook(excelPriceFile);	
-		HSSFSheet sheet = wb.getSheetAt(0);
+		HSSFSheet sheet = wb.getSheetAt(0);			
+		FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+		Iterator<Row> rowIterator = sheet.iterator();
 		HSSFRow row; 
 		HSSFCell cell;
-		Iterator rows = sheet.rowIterator();
 
-		while (rows.hasNext())
+		while (rowIterator.hasNext())
 		{
-			row=(HSSFRow) rows.next();
-			Iterator cells = row.cellIterator();
-			while (cells.hasNext())
+			row=(HSSFRow) rowIterator.next();
+			mapRow(row); //map the row 
+
+			Iterator<Cell> cellIterator = row.cellIterator();
+			while (cellIterator.hasNext())
 			{
-				cell=(HSSFCell) cells.next();
+				cell=(HSSFCell) cellIterator.next();
 
-				if (cell.getCellType() == CellType.STRING)
-				{
-					sb.append(cell.getStringCellValue()+" ");
-				}
-				else if(cell.getCellType() == CellType.NUMERIC)
-				{
-					sb.append(cell.getNumericCellValue()+" ");
-				}
-				else if(cell.getCellType() == CellType.FORMULA)
-				{
-					sb.append(cell.getCellFormula());
-				}
-			}
+				switch(evaluator.evaluateInCell(cell).getCellType())
+				{			
+				case STRING:		
+					sb.append(String.format("%s,", cell.getStringCellValue()));
+					break;
+				case NUMERIC:
+					sb.append(String.format("%s,", Double.toString(cell.getNumericCellValue())));     							
+					break;
+				case FORMULA:
+					break;		
+				case _NONE:
+					break;
+				case BLANK:
+					break;
+				case BOOLEAN:
+					sb.append(String.format("%s", Boolean.toString(cell.getBooleanCellValue())));
+					break;
+				case ERROR:
+					break;
+				default:
+					break;
+				}							
+			}	
 			sb.append("\n");
-		}	
-
+		}
+		System.out.println("Map Size: " + updatedPricesMap.size());
 		excelPriceFile.close();
 		wb.close();
-		return sb.toString().trim();
+		return sb.toString().trim();	
 	}
 
 
-	//creates a map of the Options in the input xls file containing updated prices
-	public HashMap<String, String[]> parseUpdatedPriceFile() throws IOException {
-		InputStream excelPriceFile;
-		excelPriceFile = new FileInputStream(xlsFilePath);
-		HSSFWorkbook wb = new HSSFWorkbook(excelPriceFile);	
-		HSSFSheet sheet = wb.getSheetAt(0);
+	//loads each option into a map with the old/updated prices
+	@Override
+	public void mapRow(Row row) {
+		if(row.getCell(8) != null) {
+			if(row.getCell(8).getCellType() == CellType.STRING) {
+				if(row.getCell(8).getStringCellValue().equals("Option")) { //secType cell, only care about options
+					String[] lstPrices = new String[2];
+					String ticker = "";
 
-		HashMap<String, String[]> map = new HashMap<String, String[]>();
-		String[] lstPrices;
+					if(row.getCell(1) != null) { //if ticker cell is populated 		
+						HSSFCell tickerCell =(HSSFCell)row.getCell(1);
+						if(tickerCell.getCellType() == CellType.STRING) {		
+							ticker = tickerCell.getStringCellValue();					
+						}
+					} 
 
-		HSSFRow row; 
-		HSSFCell tickerCell;
-		HSSFCell oldPriceCell;
-		HSSFCell newPriceCell;
-
-		Iterator rows = sheet.rowIterator();
-
-		while (rows.hasNext())
-		{
-			row=(HSSFRow) rows.next();
-
-			if(row.getCell(8) != null) {
-				if(row.getCell(8).getCellType() == CellType.STRING) {
-					if(row.getCell(8).getStringCellValue().equals("Option")) { //secType cell, only care about options
-						if(row.getCell(1) != null) { //if ticker cell is populated 		
-							tickerCell =(HSSFCell)row.getCell(1);
-							if(tickerCell.getCellType() == CellType.STRING) {							
-								lstPrices = new String[2];
-
-								if(row.getCell(5) != null) { //oldPrice
-									oldPriceCell = (HSSFCell)row.getCell(5);
-									if(oldPriceCell.getCellType() == CellType.NUMERIC) {
-										lstPrices[0] = Double.toString(oldPriceCell.getNumericCellValue()); 
-									} 
-								}
-
-								if(row.getCell(9) != null) {  //newPrice			
-									newPriceCell = (HSSFCell)row.getCell(9);
-									if(newPriceCell.getCellType() == CellType.NUMERIC) {	
-										lstPrices[1] = Double.toString(newPriceCell.getNumericCellValue()); 
-									}
-								} else {
-									lstPrices[1] = lstPrices[0];						
-								}
-								map.put(tickerCell.getStringCellValue(), lstPrices);
-							}
+					if(row.getCell(5) != null) { //oldPrice
+						HSSFCell oldPriceCell = (HSSFCell)row.getCell(5);			
+						if(oldPriceCell.getCellType() == CellType.NUMERIC) {
+							lstPrices[0] = Double.toString(oldPriceCell.getNumericCellValue()); 
 						} 
+					}
 
-					}				
-				}
+					if(row.getCell(9) != null) {  //newPrice			
+						HSSFCell newPriceCell = (HSSFCell)row.getCell(9);
+						if(newPriceCell.getCellType() == CellType.NUMERIC) {	
+							lstPrices[1] = Double.toString(newPriceCell.getNumericCellValue()); 
+						}
+					} else {
+						lstPrices[1] = lstPrices[0]; 								
+					}
+					updatedPricesMap.put(ticker, lstPrices);				
+				}			
 			}
 		}
-		return map;
 	}
 
-
 	//creates a new position file string to display
-	public String parsePositionsFile(HashMap<String, String[]> map) {	
-		BufferedReader in;
-		String line;
-		String secType;
-		String putCall;
-		String tradingSymbol;
-		String year;
-		String month;
-		String day;
-		String strikeDollar;
-		String strikeFraction;
-		StringBuilder sb2 = new StringBuilder();
+	@Override
+	public String generatePositionsFile() {		
 		StringBuilder result = new StringBuilder();
+		
+		try (BufferedReader in = new BufferedReader(new FileReader(txtFilePath))) {
+			//BufferedReader in = new BufferedReader(new FileReader(txtFilePath));
+			String line;
+			String secType;
+			String putCall;
+			String tradingSymbol;
+			String year;
+			String month;
+			String day;
+			String strikeDollar;
+			String strikeFraction;
+			StringBuilder sbLine = new StringBuilder();
 
-		try {
-			in = new BufferedReader(new FileReader(txtFilePath));
-
-			//handle header record
-			if((line = in.readLine()) != null) {
-				sb2.setLength(0);
-				sb2.append(line);
+			if((line = in.readLine()) != null) { //header record
+				sbLine.setLength(0);
+				sbLine.append(line);
 				DateTimeFormatter formatter = DateTimeFormatter.ofPattern("YYYYMMdd");
-				sb2 = sb2.replace(8, 17, LocalDate.now().format(formatter));
-				result.append(sb2.toString());
+
+				sbLine = sbLine.replace(8, 17, LocalDate.now().format(formatter));
+				result.append(sbLine.toString());
 				result.append("\n");
 			}
 
-			//handle detail records
-			while((line = in.readLine()) != null)
-			{	
-				sb2.setLength(0);
-				sb2.append(line);
-				secType = sb2.substring(43,44);
+			while((line = in.readLine()) != null) //detail records
+			{		
+				sbLine.setLength(0);
+				sbLine.append(line);
+				secType = sbLine.substring(43,44);
+				
 				if(secType.equals("O")) {									
-					putCall = sb2.substring(18, 19);
-					tradingSymbol = sb2.substring(19, 25).trim();
-					year = sb2.substring(27, 29);
-					month = sb2.substring(29, 31);
-					day = sb2.substring(31, 33);
-					strikeDollar = StringUtils.stripStart(sb2.substring(33, 38), "0");						
-					strikeFraction = StringUtils.stripEnd(sb2.substring(38, 42), "0");			
-
+					putCall = sbLine.substring(18, 19);
+					tradingSymbol = sbLine.substring(19, 25).trim();
+					year = sbLine.substring(27, 29);
+					month = sbLine.substring(29, 31);
+					day = sbLine.substring(31, 33);
+					strikeDollar = StringUtils.stripStart(sbLine.substring(33, 38), "0");						
+					strikeFraction = StringUtils.stripEnd(sbLine.substring(38, 42), "0");			
 					String keyValue = tradingSymbol + year + month + day + putCall + strikeDollar;
-
+					
 					if(!strikeFraction.equals("")) {
 						keyValue = keyValue + "." + strikeFraction;			
 					}
-
-					if(map.containsKey(keyValue)) {
-						String[] values = map.get(keyValue);
-
-						String newPrice = values[1]; 
-						BigDecimal bd = new BigDecimal(newPrice);
-						bd = bd.setScale(6, RoundingMode.HALF_UP);
-
-						newPrice = bd.toString();		
-						newPrice = StringUtils.leftPad(newPrice,13,"0").replace(".", "");
-
-						sb2 = sb2.replace(44, 56, newPrice); //replace with updated price
-						sb2.append("\n");
-
-						result.append(sb2.toString());
+					
+					if(updatedPricesMap.containsKey(keyValue)) {
+						String[] prices = updatedPricesMap.get(keyValue);
+						String newPrice = formatPrice(prices[1]);
+						sbLine = sbLine.replace(44, 56, newPrice); //replace with updated price
+						sbLine.append("\n");
+						result.append(sbLine.toString());
 					} 
 				} else {
-					result.append(sb2.toString());
+					result.append(sbLine.toString());
 					result.append("\n");
 				}
-
 			}
-			in.close();
-
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
 		sb = result;
 		return result.toString();
 	}
 
 
+	//format the prices according to the Risk Based Haircut System
+	public String formatPrice(String price) {	
+		BigDecimal bd = new BigDecimal(price);
+		bd = bd.setScale(6, RoundingMode.HALF_UP);	
+		price = StringUtils.leftPad(bd.toString(),13,"0").replace(".", "");
+		return price;		
+	}
+
+	@Override
 	public void registerObserver(ViewObserver o) {
 		viewObservers.add(o);
 	}
 
+	@Override
 	public void removeObserver(ViewObserver o) {
 		int i = viewObservers.indexOf(o);
 		if (i >= 0) {
@@ -283,15 +294,13 @@ public class Model implements IModel {
 		}
 	}
 
+	@Override
 	public void notifyViewObservers() {
 		for(int i = 0; i < viewObservers.size(); i++) {
 			ViewObserver observer = (ViewObserver)viewObservers.get(i);
 			observer.updateText();
 		}
 	}
-
-
-
 
 
 }
