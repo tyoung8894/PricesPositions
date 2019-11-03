@@ -6,7 +6,7 @@
 
 package young.tyler.positions;
 
-import java.io.IOException;
+
 import java.util.HashMap;
 
 public class Controller implements IController {
@@ -20,14 +20,14 @@ public class Controller implements IController {
 	}
 
 	@Override
-	public void loadPositions(String filePath) throws IOException {
+	public void loadPositions(String filePath) {
 		model.clear();
 		String fileContents = model.loadPositions(filePath);
 		model.setDisplay(fileContents);
 	}
 
 	@Override
-	public void loadUpdatedPrices(String filePath) throws IOException {
+	public void loadUpdatedPrices(String filePath){
 		model.clear();
 		model.setMap(new HashMap<String, String[]>());  
 		String fileContents = model.loadUpdatedPrices(filePath);
@@ -36,7 +36,7 @@ public class Controller implements IController {
 
 	//requires a position and xls file to be loaded
 	@Override
-	public void generatePositionsFile() throws IOException { 
+	public void generatePositionsFile(){ 
 		String fileContents = model.generatePositionsFile();
 		model.setDisplay(fileContents);
 	}

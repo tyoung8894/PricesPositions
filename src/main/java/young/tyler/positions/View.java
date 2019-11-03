@@ -9,6 +9,7 @@ package young.tyler.positions;
 
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
@@ -17,8 +18,6 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.IOException;
-
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 
@@ -92,62 +91,68 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 
 
 	public void actionPerformed(ActionEvent e) {
-		
-		
+
 		//load positions file clicked
 		if(e.getSource() == btnLoadPositions) {
 			int returnVal = fileChooser.showOpenDialog(View.this);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				try {		
-					controller.loadPositions(fileChooser.getSelectedFile().getAbsolutePath());
-					btnSave.setEnabled(true);
-					positionsLoaded = true;
-					if(pricesLoaded) {
-						btnGeneratePositionsFile.setEnabled(true);				
+			if (returnVal == JFileChooser.APPROVE_OPTION) {			
+				if (fileChooser.getSelectedFile() != null) {
+					if(fileChooser.getSelectedFile().getAbsolutePath().endsWith(".txt")) {
+						controller.loadPositions(fileChooser.getSelectedFile().getAbsolutePath());
+						btnSave.setEnabled(true);
+						positionsLoaded = true;
+						if(pricesLoaded) {
+							btnGeneratePositionsFile.setEnabled(true);				
+						}	
+					} else {
+						JOptionPane.showMessageDialog(null, "Invalid file type. Please select a positions .txt file");				
 					}
-				} catch (IOException e1) {
-					e1.printStackTrace();
 				}	
-			}	
 
+			}	
 		}
 
 		//load updated price file clicked
 		if(e.getSource() == btnLoadUpdatedPrices) {
 			int returnVal = fileChooser.showOpenDialog(View.this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				try {
-					controller.loadUpdatedPrices(fileChooser.getSelectedFile().getAbsolutePath());	
-					btnSave.setEnabled(true);
-					pricesLoaded = true;
-					if(positionsLoaded) {
-						btnGeneratePositionsFile.setEnabled(true);			
-					}
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
+				if(fileChooser.getSelectedFile() != null) {
+					if(fileChooser.getSelectedFile().getAbsolutePath().endsWith(".xls")) {
+						controller.loadUpdatedPrices(fileChooser.getSelectedFile().getAbsolutePath());	
+						btnSave.setEnabled(true);
+						pricesLoaded = true;
+						if(positionsLoaded) {
+							btnGeneratePositionsFile.setEnabled(true);			
+						}		
+					} else {
+						JOptionPane.showMessageDialog(null, "Invalid file type. Please select an .xls file with updated prices");				
+					}			
+				}		
 			}		
-
 		}
 
 		//generate new positions file clicked, xls and txt file must be loaded first 
-		if(e.getSource() == btnGeneratePositionsFile) {
-			try {
-				controller.generatePositionsFile();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
+		if(e.getSource() == btnGeneratePositionsFile) {	
+			if(positionsLoaded && pricesLoaded) {
+				controller.generatePositionsFile();			
+			}		
 		}
 
 		//save clicked, xls or txt file must be loaded first, saves to txt file
 		if(e.getSource() == btnSave) {
 			int returnVal = fileChooser.showSaveDialog(View.this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {		
-				controller.save(fileChooser.getSelectedFile().getAbsolutePath());			
+				if (fileChooser.getSelectedFile() != null) {
+					if(fileChooser.getSelectedFile().getAbsolutePath().endsWith(".txt")) {
+						if(positionsLoaded || pricesLoaded) {
+							controller.save(fileChooser.getSelectedFile().getAbsolutePath());
+						}
+					} else {
+						JOptionPane.showMessageDialog(null, "Invalid file type. Please save to a .txt file");			
+					}
+				}
 			} 
-
 		}
-
 	}
 
 
@@ -155,7 +160,6 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		String display = model.getDisplay();
 		textArea.setText(display);	
 	}
-	
-	
+
 
 }

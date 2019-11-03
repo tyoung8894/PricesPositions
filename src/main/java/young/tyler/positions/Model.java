@@ -14,15 +14,15 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import javax.swing.JOptionPane;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -38,7 +38,6 @@ import org.codehaus.plexus.util.StringUtils;
 public class Model implements IModel {
 	ArrayList<ViewObserver> viewObservers = new ArrayList<ViewObserver>();
 	String display = "";
-	String xlsFilePath = "";
 	String txtFilePath = "";
 	StringBuilder sb = new StringBuilder();
 	boolean positionsLoaded = false;
@@ -86,26 +85,29 @@ public class Model implements IModel {
 			FileWriter fw = new FileWriter(newTextFile);
 			fw.write(sb.toString());
 			fw.close();
-		} catch (IOException iox) {
-			iox.printStackTrace();
+		} catch (IOException e) {
+			JOptionPane.showMessageDialog(null, "Error saving file, please try again");
+			e.printStackTrace();
 		}
 
 	}
 
 
-	//creates positions .txt file string to display, check if txt
+	//creates positions .txt file string to display, check if txt 
 	@Override
 	public String loadPositions(String fileName) {
-		txtFilePath = fileName;
-		try (BufferedReader in = new BufferedReader(new FileReader(txtFilePath))) {
+		try (BufferedReader in = new BufferedReader(new FileReader(fileName))) {
 			String line;
 			while((line = in.readLine()) != null)
 			{
 				sb.append(line + "\n");
 			}
+			txtFilePath = fileName;
 		} catch (FileNotFoundException e1) {
+			JOptionPane.showMessageDialog(null, "Invalid positions file type or file does not exist, please select a positions txt file");
 			e1.printStackTrace();
 		} catch (IOException e) {
+			JOptionPane.showMessageDialog(null, "Error reading positions file, please make sure the positions txt file is formatted correctly");
 			e.printStackTrace();
 		} 
 		return sb.toString();
@@ -114,54 +116,56 @@ public class Model implements IModel {
 
 	//creates updated price xls file string to display
 	@Override
-	public String loadUpdatedPrices(String fileName) throws IOException {
-		xlsFilePath = fileName;
-		InputStream excelPriceFile = new FileInputStream(xlsFilePath);
-		HSSFWorkbook wb = new HSSFWorkbook(excelPriceFile);	
-		HSSFSheet sheet = wb.getSheetAt(0);			
-		FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
-		Iterator<Row> rowIterator = sheet.iterator();
-		HSSFRow row; 
-		HSSFCell cell;
+	public String loadUpdatedPrices(String fileName) {
+		try(InputStream excelPriceFile = new FileInputStream(fileName); HSSFWorkbook wb = new HSSFWorkbook(excelPriceFile) ) {
+			HSSFSheet sheet = wb.getSheetAt(0);			
+			FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+			Iterator<Row> rowIterator = sheet.iterator();
+			HSSFRow row; 
+			HSSFCell cell;
 
-		while (rowIterator.hasNext())
-		{
-			row=(HSSFRow) rowIterator.next();
-			mapRow(row); //map the row 
-
-			Iterator<Cell> cellIterator = row.cellIterator();
-			while (cellIterator.hasNext())
+			while (rowIterator.hasNext())
 			{
-				cell=(HSSFCell) cellIterator.next();
+				row=(HSSFRow) rowIterator.next();
+				mapRow(row); //map the row 
+				Iterator<Cell> cellIterator = row.cellIterator();
+				while (cellIterator.hasNext())
+				{
+					cell=(HSSFCell) cellIterator.next();
 
-				switch(evaluator.evaluateInCell(cell).getCellType())
-				{			
-				case STRING:		
-					sb.append(String.format("%s,", cell.getStringCellValue()));
-					break;
-				case NUMERIC:
-					sb.append(String.format("%s,", Double.toString(cell.getNumericCellValue())));     							
-					break;
-				case FORMULA:
-					break;		
-				case _NONE:
-					break;
-				case BLANK:
-					break;
-				case BOOLEAN:
-					sb.append(String.format("%s", Boolean.toString(cell.getBooleanCellValue())));
-					break;
-				case ERROR:
-					break;
-				default:
-					break;
-				}							
-			}	
-			sb.append("\n");
+					switch(evaluator.evaluateInCell(cell).getCellType())
+					{			
+					case STRING:		
+						sb.append(String.format("%s,", cell.getStringCellValue()));
+						break;
+					case NUMERIC:
+						sb.append(String.format("%s,", Double.toString(cell.getNumericCellValue())));     							
+						break;
+					case FORMULA:
+						break;		
+					case _NONE:
+						break;
+					case BLANK:
+						break;
+					case BOOLEAN:
+						sb.append(String.format("%s", Boolean.toString(cell.getBooleanCellValue())));
+						break;
+					case ERROR:
+						break;
+					default:
+						break;
+					}							
+				}	
+				sb.append("\n");
+			}				
+		} 
+		catch (FileNotFoundException e) {
+			JOptionPane.showMessageDialog(null, "Invalid prices file type or file does not exist, please select an xls price file");
+			e.printStackTrace();
+		} catch (IOException e1) {
+			JOptionPane.showMessageDialog(null, "Error parsing prices file, please make sure file is xls and formatted correctly");
+			e1.printStackTrace();
 		}
-		System.out.println("Map Size: " + updatedPricesMap.size());
-		excelPriceFile.close();
-		wb.close();
 		return sb.toString().trim();	
 	}
 
@@ -207,9 +211,8 @@ public class Model implements IModel {
 	@Override
 	public String generatePositionsFile() {		
 		StringBuilder result = new StringBuilder();
-		
+
 		try (BufferedReader in = new BufferedReader(new FileReader(txtFilePath))) {
-			//BufferedReader in = new BufferedReader(new FileReader(txtFilePath));
 			String line;
 			String secType;
 			String putCall;
@@ -236,8 +239,8 @@ public class Model implements IModel {
 				sbLine.setLength(0);
 				sbLine.append(line);
 				secType = sbLine.substring(43,44);
-				
-				if(secType.equals("O")) {									
+
+				if(secType.equals("O")) {								
 					putCall = sbLine.substring(18, 19);
 					tradingSymbol = sbLine.substring(19, 25).trim();
 					year = sbLine.substring(27, 29);
@@ -246,11 +249,11 @@ public class Model implements IModel {
 					strikeDollar = StringUtils.stripStart(sbLine.substring(33, 38), "0");						
 					strikeFraction = StringUtils.stripEnd(sbLine.substring(38, 42), "0");			
 					String keyValue = tradingSymbol + year + month + day + putCall + strikeDollar;
-					
+
 					if(!strikeFraction.equals("")) {
 						keyValue = keyValue + "." + strikeFraction;			
 					}
-					
+
 					if(updatedPricesMap.containsKey(keyValue)) {
 						String[] prices = updatedPricesMap.get(keyValue);
 						String newPrice = formatPrice(prices[1]);
@@ -264,8 +267,10 @@ public class Model implements IModel {
 				}
 			}
 		} catch (FileNotFoundException e1) {
+			JOptionPane.showMessageDialog(null, "Invalid positions file type or file does not exist, please load a positions txt file");
 			e1.printStackTrace();
 		} catch (IOException e) {
+			JOptionPane.showMessageDialog(null, "Error writing positions file, please reload the positions txt file");
 			e.printStackTrace();
 		}
 		sb = result;

@@ -1,9 +1,6 @@
 package young.tyler.positions;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.poi.ss.usermodel.Row;
 
 public interface IModel {
@@ -14,7 +11,7 @@ public interface IModel {
 	void setDisplay(String input);
 	Map<String, String[]> getMap();
 	void setMap(Map<String, String[]> map);
-	String loadUpdatedPrices(String filePath) throws IOException;
+	String loadUpdatedPrices(String filePath);
 	String loadPositions(String filePath);
 	String generatePositionsFile();
 	void clear();

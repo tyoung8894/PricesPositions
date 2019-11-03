@@ -1,10 +1,8 @@
 package young.tyler.positions;
 
-import java.io.IOException;
-
 public interface IController {
-	void loadPositions(String filePath) throws IOException;
-	void loadUpdatedPrices(String filePath) throws IOException;
-	void generatePositionsFile() throws IOException;
+	void loadPositions(String filePath);
+	void loadUpdatedPrices(String filePath);
+	void generatePositionsFile();
 	void save(String filePath);
 }
