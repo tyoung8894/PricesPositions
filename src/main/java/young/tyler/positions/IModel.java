@@ -10,7 +10,7 @@ public interface IModel {
 	String getDisplay();
 	void setDisplay(String input);
 	Map<String, String[]> getMap();
-	void setMap(Map<String, String[]> map);
+	void setPrices(Map<String, String[]> prices);
 	String loadUpdatedPrices(String filePath);
 	String loadPositions(String filePath);
 	String generatePositionsFile();

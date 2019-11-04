@@ -15,36 +15,36 @@ public class Controller implements IController {
 
 	public Controller(IModel model) {
 		this.model = model;
-		view = new View(this, model);
-		view.createView();
+		this.view = new View(this, model);
+		this.view.createView();
 	}
 
 	@Override
 	public void loadPositions(String filePath) {
-		model.clear();
-		String fileContents = model.loadPositions(filePath);
-		model.setDisplay(fileContents);
+		this.model.clear();
+		String fileContents = this.model.loadPositions(filePath);
+		this.model.setDisplay(fileContents);
 	}
 
 	@Override
 	public void loadUpdatedPrices(String filePath){
-		model.clear();
-		model.setMap(new HashMap<String, String[]>());  
-		String fileContents = model.loadUpdatedPrices(filePath);
-		model.setDisplay(fileContents);
+		this.model.clear();
+		this.model.setPrices(new HashMap<String, String[]>());  //use private constructor instead
+		String fileContents = this.model.loadUpdatedPrices(filePath);
+		this.model.setDisplay(fileContents);
 	}
 
-	//requires a position and xls file to be loaded
 	@Override
 	public void generatePositionsFile(){ 
-		String fileContents = model.generatePositionsFile();
-		model.setDisplay(fileContents);
+		this.model.clear();
+		String fileContents = this.model.generatePositionsFile();
+		this.model.setDisplay(fileContents);
 	}
 		
 	
 	@Override
 	public void save(String filePath) {
-		model.save(filePath);
+		this.model.save(filePath);
 	}
 
 

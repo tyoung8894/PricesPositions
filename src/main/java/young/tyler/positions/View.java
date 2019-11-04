@@ -21,8 +21,6 @@ import java.io.File;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 
-
-
 public class View extends JPanel implements ActionListener, ViewObserver {
 	JFrame frame;
 	JButton btnLoadPositions; 
@@ -31,7 +29,6 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 	JButton btnSave; 
 	JTextArea textArea;
 	JFileChooser fileChooser;
-
 	IModel model;
 	IController controller;
 	String filePath;
@@ -95,7 +92,7 @@ public class View extends JPanel implements ActionListener, ViewObserver {
 		//load positions file clicked
 		if(e.getSource() == btnLoadPositions) {
 			int returnVal = fileChooser.showOpenDialog(View.this);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {			
+			if (returnVal == JFileChooser.APPROVE_OPTION) {		
 				if (fileChooser.getSelectedFile() != null) {
 					if(fileChooser.getSelectedFile().getAbsolutePath().endsWith(".txt")) {
 						controller.loadPositions(fileChooser.getSelectedFile().getAbsolutePath());
